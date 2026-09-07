@@ -7,8 +7,16 @@ from kivy.lang import Builder
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.core.window import Window
 from kivy.utils import get_color_from_hex
+from kivy.uix.button import Button
+from kivy.metrics import dp
 
-# Configurar color de fondo
+# Permisos en tiempo de ejecución para Android
+from kivy.utils import platform
+if platform == "android":
+    from android.permissions import request_permissions, Permission
+    request_permissions([Permission.RECORD_AUDIO, Permission.INTERNET])
+
+# Configurar color de fondo general
 Window.clearcolor = get_color_from_hex('#121212')
 
 # Tablas para el Transpositor
@@ -56,6 +64,7 @@ class TunerScreen(Screen):
         self.current_strings = INSTRUMENTS['Guitarra (6 cuerdas)']
         self.sim_counter = 0
         self.sim_freq = 82.41
+        self.string_buttons = []
 
     def on_enter(self):
         self.render_strings()
@@ -100,12 +109,12 @@ class TunerScreen(Screen):
         if not self.is_listening:
             self.is_listening = True
             self.ids.mic_btn.text = "Detener"
-            self.ids.mic_btn.background_color = get_color_from_hex('#5C3D3D')
+            self.ids.mic_btn.background_color = get_color_from_hex('#E53935')
             Clock.schedule_interval(self.process_audio, 0.1)
         else:
             self.is_listening = False
             self.ids.mic_btn.text = "Activar micrófono"
-            self.ids.mic_btn.background_color = get_color_from_hex('#2A2A2A')
+            self.ids.mic_btn.background_color = get_color_from_hex('#3D3D5C')
             Clock.unschedule(self.process_audio)
             self.reset_display()
 
@@ -119,7 +128,8 @@ class TunerScreen(Screen):
     def process_audio(self, dt):
         if not self.is_listening:
             return
-        # Simulación para demo
+        
+        # NOTA: Esto es una simulación visual. Aquí iría el código real de Pyaudio/Audiostream
         self.sim_counter += 1
         if self.sim_counter % 10 == 0:
             idx = (self.sim_counter // 10) % len(self.current_strings)
@@ -130,6 +140,7 @@ class TunerScreen(Screen):
             target = min(self.current_strings, key=lambda x: abs(x['freq'] - detected_freq))
             cents = int(1200 * math.log2(detected_freq / target['freq']))
             cents_clamped = max(-50, min(50, cents))
+            
             self.ids.lbl_note.text = target['note']
             self.ids.lbl_freq.text = f"{detected_freq:.1f} Hz"
             self.ids.cent_bar.value = 50 + cents_clamped
@@ -142,22 +153,31 @@ class TransposerScreen(Screen):
         to_text = self.ids.spin_to.text.split(' ')[0]
         from_idx = NOTE_MAP.get(from_text.upper())
         to_idx = NOTE_MAP.get(to_text.upper())
+        
         if from_idx is None or to_idx is None:
             return
+            
         shift = (to_idx - from_idx + 12) % 12
         target_arr = NOTES_ES if "Español" in self.ids.spin_format.text else NOTES_EN
-        tokens = self.ids.input_chords.text.split(' ')
+        tokens = self.ids.input_chords.text.replace('\n', ' \n ').split(' ')
         res = []
+        
         for t in tokens:
-            if not t.strip():
+            if not t.strip() and t != '\n':
                 res.append(t)
                 continue
+            if t == '\n':
+                res.append(t)
+                continue
+                
             idx_note, suffix = self.parse_chord(t)
             if idx_note is not None:
                 res.append(target_arr[(idx_note + shift) % 12] + suffix)
             else:
                 res.append(t)
-        self.ids.lbl_output.text = "  ".join(res)
+                
+        # Unir respetando saltos de línea
+        self.ids.lbl_output.text = " ".join(res).replace(" \n ", "\n")
 
     def parse_chord(self, chord):
         chord = chord.strip()
@@ -171,11 +191,8 @@ class TransposerScreen(Screen):
 class AfiniaApp(App):
     def build(self):
         self.title = "Afinia"
-        Builder.load_file('afinia.kv')
-        sm = ScreenManager()
-        sm.add_widget(TunerScreen(name='tuner'))
-        sm.add_widget(TransposerScreen(name='transposer'))
-        return sm
+        # Carga el diseño que contiene el ScreenManager y la Barra de Navegación
+        return Builder.load_file('afinia.kv')
 
 if __name__ == '__main__':
     AfiniaApp().run()
