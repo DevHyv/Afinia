@@ -1,11 +1,9 @@
 import math
-import numpy as np
 import webbrowser
 
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.core.window import Window
-from kivy.graphics import Color, Rectangle
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.gridlayout import GridLayout
@@ -14,14 +12,6 @@ from kivy.uix.progressbar import ProgressBar
 from kivy.uix.spinner import Spinner
 from kivy.uix.textinput import TextInput
 
-# Intentar importar audiostream (solo en Android)
-try:
-    from audiostream import get_input
-    HAS_AUDIO = True
-except ImportError:
-    HAS_AUDIO = False
-    print("Audiostream no disponible, usando simulación")
-
 # Configurar color de fondo general (#1a1a1a)
 Window.clearcolor = (0.1, 0.1, 0.1, 1)
 
@@ -29,7 +19,6 @@ Window.clearcolor = (0.1, 0.1, 0.1, 1)
 NOTES_ES = ["Do", "Do#", "Re", "Re#", "Mi", "Fa", "Fa#", "Sol", "Sol#", "La", "La#", "Si"]
 NOTES_EN = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
-# Mapa de notas mejorado (soporta bemoles y sostenidos en español e inglés)
 NOTE_MAP = {
     'C': 0, 'DO': 0, 'C#': 1, 'DB': 1, 'DO#': 1, 'REB': 1,
     'D': 2, 'RE': 2, 'D#': 3, 'EB': 3, 'RE#': 3, 'MIB': 3,
@@ -71,12 +60,10 @@ class TunerTransposerApp(App):
         self.active_string_idx = 0
         self.current_strings = INSTRUMENTS['Guitarra (6 cuerdas)']
         
-        # Variables para audio
-        self.audio_stream = None
-        self.audio_buffer = np.array([], dtype=np.int16)
-        self.audio_lock = False  # evita sobrescribir mientras se procesa
+        # Simulación para demo
+        self.sim_freq = 82.41
+        self.sim_counter = 0
 
-        # Layout Principal
         root = BoxLayout(orientation='vertical', padding=12, spacing=10)
 
         # Navegación Superior (Tabs)
@@ -211,46 +198,13 @@ class TunerTransposerApp(App):
             self.is_listening = True
             self.mic_btn.text = "Detener"
             self.mic_btn.background_color = (0.35, 0.23, 0.23, 1)
-            self.start_audio_stream()
             Clock.schedule_interval(self.process_audio, 0.1)
         else:
             self.is_listening = False
             self.mic_btn.text = "Activar micrófono"
             self.mic_btn.background_color = (0.23, 0.23, 0.23, 1)
-            self.stop_audio_stream()
             Clock.unschedule(self.process_audio)
             self.reset_tuner_display()
-
-    def start_audio_stream(self):
-        if not HAS_AUDIO:
-            print("Modo simulación (sin audio real)")
-            return
-        try:
-            self.audio_stream = get_input(
-                rate=44100,
-                buffersize=2048,
-                callback=self.audio_callback
-            )
-            self.audio_stream.start()
-            print("Stream de audio iniciado")
-        except Exception as e:
-            print(f"Error al iniciar audio: {e}")
-            self.is_listening = False
-            self.mic_btn.text = "Activar micrófono"
-            self.mic_btn.background_color = (0.23, 0.23, 0.23, 1)
-
-    def stop_audio_stream(self):
-        if self.audio_stream:
-            self.audio_stream.stop()
-            self.audio_stream = None
-        self.audio_buffer = np.array([], dtype=np.int16)
-
-    def audio_callback(self, buf):
-        # Convertir el buffer recibido (bytes) a array numpy int16
-        try:
-            self.audio_buffer = np.frombuffer(buf, dtype=np.int16).copy()
-        except Exception as e:
-            print(f"Error en callback de audio: {e}")
 
     def reset_tuner_display(self):
         self.lbl_note.text = "–"
@@ -259,41 +213,15 @@ class TunerTransposerApp(App):
         self.lbl_cents.text = "––"
         self.lbl_cents.color = (1, 1, 1, 1)
 
-    def auto_correlate(self, buffer, sample_rate=44100):
-        # Algoritmo de Autocorrelación optimizado con NumPy
-        if len(buffer) < 1024:
-            return -1
-        # Normalizar y quitar DC
-        buffer = buffer - np.mean(buffer)
-        autocorr = np.correlate(buffer, buffer, mode='full')
-        autocorr = autocorr[len(autocorr)//2:]
-        d = np.diff(autocorr)
-        start = np.where(d > 0)[0]
-        if len(start) == 0:
-            return -1
-        peak = np.argmax(autocorr[start[0]:]) + start[0]
-        if peak == 0:
-            return -1
-        return sample_rate / peak
-
     def process_audio(self, dt):
-        if not self.is_listening:
-            return
-
-        if HAS_AUDIO and self.audio_stream is not None:
-            # Usar buffer real si está disponible
-            buffer = self.audio_buffer
-        else:
-            # Simulación para pruebas en PC
-            buffer = np.random.normal(0, 1000, 2048).astype(np.int16)
-
-        if len(buffer) == 0:
-            return
-
-        detected_freq = self.auto_correlate(buffer)
-
+        # Simulación simple para demo
+        self.sim_counter += 1
+        if self.sim_counter % 10 == 0:
+            self.sim_freq = self.current_strings[self.sim_counter // 10 % len(self.current_strings)]['freq']
+        
+        detected_freq = self.sim_freq
+        
         if detected_freq > 30:
-            # Encontrar nota objetivo más cercana
             target = min(self.current_strings, key=lambda x: abs(x['freq'] - detected_freq))
             cents = int(1200 * math.log2(detected_freq / target['freq']))
             cents_clamped = max(-50, min(50, cents))
@@ -303,9 +231,8 @@ class TunerTransposerApp(App):
             self.cent_bar.value = 50 + cents_clamped
             self.lbl_cents.text = f"{'+' if cents > 0 else ''}{cents}"
 
-            # Cambio de color si está afinado (+/- 5 cents)
             if abs(cents) <= 5:
-                self.lbl_cents.color = (0.54, 0.72, 0.48, 1) # Verde
+                self.lbl_cents.color = (0.54, 0.72, 0.48, 1)  # Verde
             else:
                 self.lbl_cents.color = (1, 1, 1, 1)
 
@@ -344,9 +271,7 @@ class TunerTransposerApp(App):
         self.trans_view.add_widget(self.lbl_output)
 
     def parse_chord(self, chord):
-        """Devuelve (indice_nota, sufijo) o (None, chord) si no reconoce la nota"""
         chord = chord.strip()
-        # Buscar coincidencia más larga (2 caracteres, luego 1)
         for length in [2, 1]:
             if length <= len(chord):
                 potential = chord[:length].upper()
@@ -355,11 +280,9 @@ class TunerTransposerApp(App):
         return None, chord
 
     def process_transpose(self, instance):
-        # Obtener índices de las notas origen y destino
-        from_text = self.spin_from.text.split(' ')[0]  # Ej: 'Sol'
-        to_text = self.spin_to.text.split(' ')[0]      # Ej: 'Do'
+        from_text = self.spin_from.text.split(' ')[0]
+        to_text = self.spin_to.text.split(' ')[0]
         
-        # Convertir a índice usando NOTE_MAP
         from_idx = NOTE_MAP.get(from_text.upper())
         to_idx = NOTE_MAP.get(to_text.upper())
         if from_idx is None or to_idx is None:
