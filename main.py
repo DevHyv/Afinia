@@ -11,14 +11,6 @@ from kivy.utils import get_color_from_hex
 # Configurar color de fondo
 Window.clearcolor = get_color_from_hex('#121212')
 
-# Intentar importar módulos para audio
-try:
-    from android.permissions import request_permissions, Permission
-    from audiostream import get_input
-    HAS_AUDIO = True
-except ImportError:
-    HAS_AUDIO = False
-
 # Tablas para el Transpositor
 NOTES_ES = ["Do", "Do#", "Re", "Re#", "Mi", "Fa", "Fa#", "Sol", "Sol#", "La", "La#", "Si"]
 NOTES_EN = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
@@ -32,7 +24,6 @@ NOTE_MAP = {
     'LA#': 10, 'SIB': 10, 'B': 11, 'SI': 11
 }
 
-# Afinaciones
 INSTRUMENTS = {
     'Guitarra (6 cuerdas)': [
         {'note': 'E', 'freq': 82.41, 'label': '6ª'},
@@ -63,8 +54,6 @@ class TunerScreen(Screen):
         self.tuning_mode = "auto"
         self.active_string_idx = 0
         self.current_strings = INSTRUMENTS['Guitarra (6 cuerdas)']
-        self.audio_stream = None
-        self.audio_buffer = []
         self.sim_counter = 0
         self.sim_freq = 82.41
 
@@ -109,35 +98,16 @@ class TunerScreen(Screen):
 
     def toggle_microphone(self):
         if not self.is_listening:
-            # Solicitar permisos en Android
-            if HAS_AUDIO:
-                request_permissions([Permission.RECORD_AUDIO])
-                try:
-                    self.audio_stream = get_input(rate=44100, buffersize=2048, callback=self.audio_callback)
-                    self.audio_stream.start()
-                except Exception as e:
-                    print(f"Error audio: {e}")
-                    self.audio_stream = None
             self.is_listening = True
             self.ids.mic_btn.text = "Detener"
             self.ids.mic_btn.background_color = get_color_from_hex('#5C3D3D')
             Clock.schedule_interval(self.process_audio, 0.1)
         else:
             self.is_listening = False
-            if self.audio_stream:
-                self.audio_stream.stop()
-                self.audio_stream = None
             self.ids.mic_btn.text = "Activar micrófono"
             self.ids.mic_btn.background_color = get_color_from_hex('#2A2A2A')
             Clock.unschedule(self.process_audio)
             self.reset_display()
-
-    def audio_callback(self, buf):
-        try:
-            import numpy as np
-            self.audio_buffer = np.frombuffer(buf, dtype=np.int16)
-        except:
-            pass
 
     def reset_display(self):
         self.ids.lbl_note.text = "–"
@@ -149,16 +119,12 @@ class TunerScreen(Screen):
     def process_audio(self, dt):
         if not self.is_listening:
             return
-        if HAS_AUDIO and self.audio_stream is not None and len(self.audio_buffer) > 0:
-            buffer = self.audio_buffer
-            detected_freq = self.auto_correlate(buffer)
-        else:
-            # Modo simulación
-            self.sim_counter += 1
-            if self.sim_counter % 10 == 0:
-                idx = (self.sim_counter // 10) % len(self.current_strings)
-                self.sim_freq = self.current_strings[idx]['freq']
-            detected_freq = self.sim_freq
+        # Simulación para demo
+        self.sim_counter += 1
+        if self.sim_counter % 10 == 0:
+            idx = (self.sim_counter // 10) % len(self.current_strings)
+            self.sim_freq = self.current_strings[idx]['freq']
+        detected_freq = self.sim_freq
 
         if detected_freq > 30:
             target = min(self.current_strings, key=lambda x: abs(x['freq'] - detected_freq))
@@ -169,25 +135,6 @@ class TunerScreen(Screen):
             self.ids.cent_bar.value = 50 + cents_clamped
             self.ids.lbl_cents.text = f"{'+' if cents > 0 else ''}{cents}"
             self.ids.lbl_cents.color = get_color_from_hex('#8BC34A') if abs(cents) <= 5 else get_color_from_hex('#FFFFFF')
-
-    def auto_correlate(self, buffer, sample_rate=44100):
-        try:
-            import numpy as np
-            if len(buffer) < 1024:
-                return -1
-            buffer = buffer - np.mean(buffer)
-            autocorr = np.correlate(buffer, buffer, mode='full')
-            autocorr = autocorr[len(autocorr)//2:]
-            d = np.diff(autocorr)
-            start = np.where(d > 0)[0]
-            if len(start) == 0:
-                return -1
-            peak = np.argmax(autocorr[start[0]:]) + start[0]
-            if peak == 0:
-                return -1
-            return sample_rate / peak
-        except:
-            return -1
 
 class TransposerScreen(Screen):
     def process_transpose(self):
