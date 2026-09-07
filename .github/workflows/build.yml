@@ -1,50 +1,44 @@
-name: Compilar APK Android
+name: Build Pipeline
 
 on:
   push:
-    branches: [ main, master ]
-  workflow_dispatch:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
 
     steps:
-      - name: Obtener código del repositorio
+      # 1. Clonar el repositorio con la versión v4
+      - name: Checkout del código
         uses: actions/checkout@v4
 
-      - name: Configurar JDK 17
-        uses: actions/setup-java@v4
+      # 2. Configurar Java con la versión v5 (resuelve el warning de v4)
+      - name: Configurar Java JDK 17
+        uses: actions/setup-java@v5
         with:
-          distribution: 'zulu'
+          distribution: 'temurin'
           java-version: '17'
+          cache: 'gradle' # Cambia a 'maven' si usas Maven en lugar de Gradle
 
-      - name: Configurar entorno de Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+      # 3. Dar permisos de ejecución al script Gradle Wrapper (para entornos Linux/macOS)
+      - name: Otorgar permisos de ejecución a gradlew
+        run: chmod +x gradlew
+        continue-on-error: true # Ignora si el proyecto no usa gradlew
 
-      # ¡ATENCIÓN A ESTE PASO! Añadí portaudio19-dev para que pyaudio se instale bien
-      - name: Instalar dependencias del sistema
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libffi-dev libssl-dev ccache libltdl-dev portaudio19-dev
+      # 4. Compilar y ejecutar pruebas en Android / Java (Gradle)
+      - name: Compilar con Gradle
+        run: ./gradlew build --stacktrace
+        continue-on-error: false
 
-      - name: Instalar Buildozer y dependencias Python
-        run: |
-          pip install --upgrade pip setuptools wheel
-          pip install buildozer==1.5.0
-          pip install cython==3.0.10
-          pip install kivy==2.3.0
-
-      - name: Compilar APK
-        run: |
-          yes | buildozer android debug
-
-      - name: Subir el APK generado
-        uses: actions/upload-artifact@v4
-        with:
-          name: Afinia-APK
-          path: bin/*.apk
-          if-no-files-found: error
+      # 5. (Opcional) Si tu proyecto también usa Node.js / NPM para el frontend/UI
+      # - name: Configurar Node.js
+      #   uses: actions/setup-node@v4
+      #   with:
+      #     node-version: '20'
+      # - name: Instalar dependencias e ir a build
+      #   run: |
+      #     npm ci
+      #     npm run build
