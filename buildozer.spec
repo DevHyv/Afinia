@@ -8,13 +8,13 @@ source.include_exts = py,png,jpg,kv,atlas
 
 version = 1.0.0
 
-# Dependencias mínimas y estables
-requirements = python3,kivy
+# Añadí "android" a los requirements. Es OBLIGATORIO para usar los permisos
+requirements = python3,kivy,android
 
 # Permisos
 android.permissions = RECORD_AUDIO, INTERNET
 
-# Icono
+# Icono (Asegúrate de que icon.png exista en tu repositorio, si no, bórralo o coméntalo)
 icon.filename = icon.png
 
 orientation = portrait
