@@ -8,13 +8,14 @@ source.include_exts = py,png,jpg,kv,atlas
 
 version = 1.0.0
 
-# Añadí "android" a los requirements. Es OBLIGATORIO para usar los permisos
-requirements = python3,kivy,android
+# ¡AQUÍ ESTÁ EL CAMBIO IMPORTANTE!
+# Añadimos numpy y pyaudio para que el análisis de audio sea real
+requirements = python3,kivy,android,numpy,pyaudio
 
-# Permisos
+# Permisos requeridos
 android.permissions = RECORD_AUDIO, INTERNET
 
-# Icono (Asegúrate de que icon.png exista en tu repositorio, si no, bórralo o coméntalo)
+# Icono
 icon.filename = icon.png
 
 orientation = portrait
