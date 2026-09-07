@@ -1,185 +1,30 @@
-#:import get_color_from_hex kivy.utils.get_color_from_hex
-#:import dp kivy.metrics.dp
-#:import sp kivy.metrics.sp
+[app]
+title = Afinia
+package.name = afinia
+package.domain = org.afinia
 
-<CustomButton@Button>:
-    background_normal: ''
-    background_color: get_color_from_hex('#2A2A2A')
-    color: '#FFFFFF'
-    font_size: sp(18)
-    bold: True
-    size_hint_y: None
-    height: dp(56)
+source.dir = .
+source.include_exts = py,png,jpg,kv,atlas
 
-<TunerScreen>:
-    BoxLayout:
-        orientation: 'vertical'
-        padding: dp(16)
-        spacing: dp(16)
+version = 1.0.0
 
-        BoxLayout:
-            size_hint_y: None
-            height: dp(56)
-            spacing: dp(8)
+# Dependencias mínimas y estables
+requirements = python3,kivy
 
-            Button:
-                text: 'Afinia'
-                font_size: sp(28)
-                bold: True
-                color: get_color_from_hex('#D4A5D4')
-                background_color: (0,0,0,0)
-                on_release: webbrowser.open('https://www.paypal.me/tuusuario')
+# Permisos
+android.permissions = RECORD_AUDIO, INTERNET
 
-            Spinner:
-                id: instrument_spinner
-                text: 'Guitarra (6 cuerdas)'
-                values: ['Guitarra (6 cuerdas)', 'Bajo', 'Ukelele']
-                size_hint_x: 0.6
-                height: dp(48)
-                background_normal: ''
-                background_color: get_color_from_hex('#1E1E1E')
-                font_size: sp(16)
-                on_text: root.on_instrument_change(self.text)
+# Icono
+icon.filename = icon.png
 
-        BoxLayout:
-            size_hint_y: None
-            height: dp(56)
-            spacing: dp(8)
+orientation = portrait
+fullscreen = 0
 
-            Button:
-                id: mic_btn
-                text: 'Activar micrófono'
-                on_release: root.toggle_microphone()
-                background_color: get_color_from_hex('#2A2A2A')
+android.archs = arm64-v8a
+android.minapi = 21
+android.api = 33
+android.ndk = 25b
 
-            BoxLayout:
-                spacing: dp(2)
-                Button:
-                    id: btn_auto
-                    text: 'Auto'
-                    on_release: root.set_mode('auto')
-                    background_color: get_color_from_hex('#3D3D5C')
-                Button:
-                    id: btn_manual
-                    text: 'Manual'
-                    on_release: root.set_mode('manual')
-                    background_color: get_color_from_hex('#2A2A2A')
-
-        BoxLayout:
-            orientation: 'vertical'
-            size_hint_y: None
-            height: dp(120)
-            spacing: dp(4)
-
-            Label:
-                id: lbl_note
-                text: '–'
-                font_size: sp(72)
-                bold: True
-                color: '#FFFFFF'
-            Label:
-                id: lbl_freq
-                text: '0.0 Hz'
-                font_size: sp(20)
-                color: '#B0B0B0'
-
-        ProgressBar:
-            id: cent_bar
-            max: 100
-            value: 50
-            size_hint_y: None
-            height: dp(24)
-
-        Label:
-            id: lbl_cents
-            text: '––'
-            font_size: sp(28)
-            bold: True
-            size_hint_y: None
-            height: dp(48)
-            color: '#FFFFFF'
-
-        GridLayout:
-            id: strings_grid
-            cols: 3
-            spacing: dp(10)
-            size_hint_y: 1
-
-<TransposerScreen>:
-    BoxLayout:
-        orientation: 'vertical'
-        padding: dp(16)
-        spacing: dp(16)
-
-        Label:
-            text: 'Transpositor'
-            font_size: sp(28)
-            bold: True
-            size_hint_y: None
-            height: dp(48)
-
-        TextInput:
-            id: input_chords
-            text: 'Sol  Mim  Lam  Re7'
-            multiline: True
-            size_hint_y: None
-            height: dp(100)
-            background_normal: ''
-            background_color: get_color_from_hex('#1E1E1E')
-            foreground_color: '#FFFFFF'
-            padding: (dp(12), dp(12))
-            font_size: sp(18)
-
-        GridLayout:
-            cols: 2
-            spacing: dp(12)
-            size_hint_y: None
-            height: dp(56)
-
-            Spinner:
-                id: spin_from
-                text: 'Sol (G)'
-                values: [f"{es} ({en})" for es, en in zip(
-                    ['Do','Do#','Re','Re#','Mi','Fa','Fa#','Sol','Sol#','La','La#','Si'],
-                    ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'])]
-                background_normal: ''
-                background_color: get_color_from_hex('#1E1E1E')
-                font_size: sp(16)
-            Spinner:
-                id: spin_to
-                text: 'Do (C)'
-                values: [f"{es} ({en})" for es, en in zip(
-                    ['Do','Do#','Re','Re#','Mi','Fa','Fa#','Sol','Sol#','La','La#','Si'],
-                    ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'])]
-                background_normal: ''
-                background_color: get_color_from_hex('#1E1E1E')
-                font_size: sp(16)
-
-        Spinner:
-            id: spin_format
-            text: 'Español (Do, Re, Mi...)'
-            values: ['Español (Do, Re, Mi...)', 'Anglo (C, D, E...)']
-            size_hint_y: None
-            height: dp(56)
-            background_normal: ''
-            background_color: get_color_from_hex('#1E1E1E')
-            font_size: sp(16)
-
-        Button:
-            text: 'Transponer'
-            size_hint_y: None
-            height: dp(60)
-            background_color: get_color_from_hex('#3D3D5C')
-            font_size: sp(20)
-            on_release: root.process_transpose()
-
-        Label:
-            id: lbl_output
-            text: 'Do  Lam  Rem  Sol7'
-            color: get_color_from_hex('#8BC34A')
-            font_size: sp(24)
-            bold: True
-            size_hint_y: 1
-            text_size: self.size
-            halign: 'center'
-            valign: 'middle'
+[buildozer]
+log_level = 2
+warn_on_root = 1
